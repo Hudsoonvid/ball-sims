@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Hue Swarm · colour ball simulation</title>
+  <meta name="description" content="Thousands of coloured balls: similar colours attract, opposite colours repel. Fully customizable.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="gl" aria-label="Ball simulation"></canvas>
+  <canvas id="overlay" aria-hidden="true"></canvas>
+
+  <div id="hud">
+    <span id="fps">–</span>
+  </div>
+
+  <button id="panelToggle" class="fab" type="button" aria-controls="panel" aria-expanded="true" title="Show / hide controls (H)">
+    <span aria-hidden="true">⚙︎</span><span class="fab-label">Controls</span>
+  </button>
+
+  <aside id="panel" aria-label="Simulation controls">
+    <header class="panel-head">
+      <h1><span class="rainbow">Hue Swarm</span></h1>
+      <button id="panelClose" class="icon-btn" type="button" title="Hide controls (H)" aria-label="Hide controls">✕</button>
+    </header>
+
+    <div class="actions">
+      <button id="btnRandomize" class="btn primary" type="button" title="Scatter every ball to a new random spot (R)">🔀 Randomize</button>
+      <button id="btnPause" class="btn" type="button" title="Pause / play (Space)">⏸ Pause</button>
+    </div>
+
+    <details open>
+      <summary>Balls</summary>
+      <div class="row">
+        <label for="count">Number of balls</label>
+        <input id="countNum" class="num" type="number" min="1" max="50000" step="100" aria-label="Number of balls (exact)">
+      </div>
+      <input id="count" data-key="count" type="range" min="100" max="30000" step="100" aria-label="Number of balls">
+      <label class="row" for="size">
+        <span>Ball size</span><output data-for="size"></output>
+      </label>
+      <input id="size" data-key="size" type="range" min="0.3" max="3" step="0.05">
+      <label class="row" for="colors">
+        <span>Colours</span>
+        <select id="colors" data-key="colors">
+          <option value="0">Smooth rainbow</option>
+          <option value="2">2 colours</option>
+          <option value="3">3 colours</option>
+          <option value="4">4 colours</option>
+          <option value="5">5 colours</option>
+          <option value="6">6 colours</option>
+          <option value="8">8 colours</option>
+          <option value="12">12 colours</option>
+        </select>
+      </label>
+      <div class="actions">
+        <button id="btnFollow" class="btn small" type="button" title="Highlight one ball and trace its path (F)">🎯 Follow a ball</button>
+        <button id="btnRecolor" class="btn small" type="button" title="Give every ball a new colour (C)">🎨 Shuffle colours</button>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Rules</summary>
+      <label class="check"><input type="checkbox" data-key="simAttract"> <span>Similar colours <b class="att">attract</b></span></label>
+      <label class="check"><input type="checkbox" data-key="oppRepel"> <span>Opposite colours <b class="rep">repel</b></span></label>
+      <label class="check"><input type="checkbox" data-key="simRepel"> <span>Similar colours <b class="rep">repel</b></span></label>
+      <label class="check"><input type="checkbox" data-key="oppAttract"> <span>Opposite colours <b class="att">attract</b></span></label>
+      <label class="check"><input type="checkbox" data-key="collisions"> <span>Balls collide</span></label>
+      <label class="check"><input type="checkbox" data-key="walls"> <span>Walls at the screen edge</span></label>
+      <label class="check"><input type="checkbox" data-key="centerPull"> <span>Pull towards the centre</span></label>
+      <label class="row" for="tolerance"><span>Colour tolerance</span><output data-for="tolerance"></output></label>
+      <input id="tolerance" data-key="tolerance" type="range" min="5" max="50" step="1">
+      <p class="note">Hues closer than the tolerance count as <b class="att">similar</b>; hues that close to the <i>opposite</i> side of the wheel count as <b class="rep">opposite</b> (red ↔ cyan, yellow ↔ blue). The closer, the stronger.</p>
+    </details>
+
+    <details open>
+      <summary>Strength</summary>
+      <label class="row" for="attract"><span>Attraction strength</span><output data-for="attract"></output></label>
+      <input id="attract" data-key="attract" type="range" min="0" max="100" step="1">
+      <label class="row" for="repel"><span>Repulsion strength</span><output data-for="repel"></output></label>
+      <input id="repel" data-key="repel" type="range" min="0" max="100" step="1">
+      <label class="row" for="range"><span>Interaction range</span><output data-for="range"></output></label>
+      <input id="range" data-key="range" type="range" min="0" max="100" step="1">
+      <label class="row" for="centerStrength"><span>Centre pull</span><output data-for="centerStrength"></output></label>
+      <input id="centerStrength" data-key="centerStrength" type="range" min="0" max="100" step="1">
+      <label class="row" for="friction"><span>Friction</span><output data-for="friction"></output></label>
+      <input id="friction" data-key="friction" type="range" min="0" max="100" step="1">
+      <label class="row" for="jiggle"><span>Jiggle (random motion)</span><output data-for="jiggle"></output></label>
+      <input id="jiggle" data-key="jiggle" type="range" min="0" max="100" step="1">
+      <label class="row" for="speed"><span>Simulation speed</span><output data-for="speed"></output></label>
+      <input id="speed" data-key="speed" type="range" min="0.25" max="3" step="0.25">
+    </details>
+
+    <details open>
+      <summary>Mouse &amp; touch</summary>
+      <div class="seg" role="radiogroup" aria-label="Mouse effect">
+        <label><input type="radio" name="mouseMode" value="push"><span>Push</span></label>
+        <label><input type="radio" name="mouseMode" value="pull"><span>Pull</span></label>
+        <label><input type="radio" name="mouseMode" value="swirl"><span>Swirl</span></label>
+        <label><input type="radio" name="mouseMode" value="stir"><span>Stir</span></label>
+        <label><input type="radio" name="mouseMode" value="off"><span>Off</span></label>
+      </div>
+      <label class="row" for="mouseRadius"><span>Area size</span><output data-for="mouseRadius"></output></label>
+      <input id="mouseRadius" data-key="mouseRadius" type="range" min="20" max="400" step="5">
+      <label class="row" for="mouseStrength"><span>Effect strength</span><output data-for="mouseStrength"></output></label>
+      <input id="mouseStrength" data-key="mouseStrength" type="range" min="0" max="100" step="1">
+      <label class="check"><input type="checkbox" data-key="mouseClickOnly"> <span>Only while the button is held</span></label>
+      <label class="check"><input type="checkbox" data-key="showMouse"> <span>Show the affected area</span></label>
+    </details>
+
+    <details>
+      <summary>Display</summary>
+      <label class="check"><input type="checkbox" data-key="shading"> <span>3D shaded balls</span></label>
+      <label class="check"><input type="checkbox" data-key="glow"> <span>Glow</span></label>
+      <label class="check"><input type="checkbox" data-key="trails"> <span>Trails</span></label>
+      <label class="row" for="trailLength"><span>Trail length</span><output data-for="trailLength"></output></label>
+      <input id="trailLength" data-key="trailLength" type="range" min="0" max="100" step="1">
+    </details>
+
+    <details open>
+      <summary>Presets</summary>
+      <div class="presets" id="presets"></div>
+    </details>
+
+    <footer class="panel-foot">
+      <div id="stats">–</div>
+      <div class="keys"><kbd>Space</kbd> pause · <kbd>R</kbd> randomize · <kbd>F</kbd> follow · <kbd>H</kbd> hide panel</div>
+      <button id="btnReset" class="btn small ghost" type="button">Reset all settings</button>
+    </footer>
+  </aside>
+
+  <div id="hint" role="status">Move over the balls to push them · double-click a ball to follow it</div>
+
+  <script src="js/sim.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
